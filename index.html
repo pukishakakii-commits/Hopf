@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Flappy Cucumber 🥒</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; }
+
+  body {
+    background: #1a1a2e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Press Start 2P', monospace;
+  }
+
+  #game-wrapper {
+    position: relative;
+    width: 400px;
+    height: 600px;
+    overflow: hidden;
+    border-radius: 20px;
+    box-shadow: 0 0 60px rgba(0,255,100,0.3), 0 0 120px rgba(0,255,100,0.1);
+    border: 2px solid rgba(0,255,100,0.4);
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+  }
+
+  #ui {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+  }
+
+  #score-display {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font-size: 28px;
+    text-shadow: 0 0 20px rgba(0,255,100,0.8), 2px 2px 0 #000;
+    pointer-events: none;
+  }
+
+  #stars-display {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    color: #FFD700;
+    font-size: 10px;
+    text-shadow: 0 0 10px rgba(255,215,0,0.8);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Screens */
+  .screen {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: all;
+  }
+
+  /* START SCREEN */
+  #start-screen {
+    background: linear-gradient(180deg, #0f3460 0%, #1a1a2e 50%, #16213e 100%);
+  }
+
+  .game-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 22px;
+    color: #4ade80;
+    text-shadow: 0 0 30px #4ade80, 2px 2px 0 #000;
+    text-align: center;
+    line-height: 1.6;
+    margin-bottom: 10px;
+    animation: titlePulse 2s infinite;
+  }
+
+  @keyframes titlePulse {
+    0%,100% { text-shadow: 0 0 20px #4ade80, 2px 2px 0 #000; }
+    50% { text-shadow: 0 0 40px #4ade80, 0 0 80px rgba(74,222,128,0.4), 2px 2px 0 #000; }
+  }
+
+  .cucumber-emoji {
+    font-size: 72px;
+    animation: bounce 1s infinite;
+    filter: drop-shadow(0 0 20px rgba(74,222,128,0.6));
+    margin: 10px 0;
+  }
+
+  @keyframes bounce {
+    0%,100% { transform: translateY(0) rotate(-5deg); }
+    50% { transform: translateY(-15px) rotate(5deg); }
+  }
+
+  .tap-hint {
+    color: #94a3b8;
+    font-size: 9px;
+    animation: blink 1.2s infinite;
+    margin-top: 15px;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .btn {
+    background: linear-gradient(135deg, #4ade80, #22c55e);
+    color: #000;
+    border: none;
+    padding: 14px 30px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    border-radius: 12px;
+    cursor: pointer;
+    margin: 8px;
+    box-shadow: 0 4px 0 #15803d, 0 0 20px rgba(74,222,128,0.3);
+    transition: all 0.1s;
+    pointer-events: all;
+  }
+
+  .btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 0 0 #15803d;
+  }
+
+  .btn-secondary {
+    background: linear-gradient(135deg, #FFD700, #f59e0b);
+    box-shadow: 0 4px 0 #b45309, 0 0 20px rgba(255,215,0,0.3);
+  }
+
+  .btn-secondary:active { box-shadow: 0 0 0 #b45309; }
+
+  /* SHOP SCREEN */
+  #shop-screen {
+    background: linear-gradient(180deg, #1a0533 0%, #2d1b69 50%, #1a0533 100%);
+    padding: 20px;
+    overflow-y: auto;
+  }
+
+  .shop-title {
+    font-size: 14px;
+    color: #FFD700;
+    text-shadow: 0 0 20px #FFD700;
+    margin-bottom: 20px;
+  }
+
+  .skins-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    width: 100%;
+    max-width: 340px;
+  }
+
+  .skin-card {
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 16px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    pointer-events: all;
+  }
+
+  .skin-card.owned { border-color: #4ade80; background: rgba(74,222,128,0.1); }
+  .skin-card.selected { border-color: #FFD700; background: rgba(255,215,0,0.15); box-shadow: 0 0 20px rgba(255,215,0,0.3); }
+  .skin-card.locked { opacity: 0.6; }
+
+  .skin-emoji { font-size: 40px; margin-bottom: 8px; display: block; }
+  .skin-name { font-size: 7px; color: #e2e8f0; margin-bottom: 6px; }
+  .skin-price { font-size: 8px; color: #FFD700; }
+  .skin-price.free { color: #4ade80; }
+  .skin-price.owned-label { color: #94a3b8; }
+
+  /* LEADERBOARD */
+  #leaderboard-screen {
+    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+    padding: 20px;
+    overflow-y: auto;
+  }
+
+  .lb-title {
+    font-size: 12px;
+    color: #38bdf8;
+    text-shadow: 0 0 20px #38bdf8;
+    margin-bottom: 20px;
+  }
+
+  .lb-list {
+    width: 100%;
+    max-width: 340px;
+  }
+
+  .lb-entry {
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(255,255,255,0.08);
+    gap: 12px;
+  }
+
+  .lb-rank { font-size: 12px; width: 28px; color: #64748b; }
+  .lb-rank.gold { color: #FFD700; text-shadow: 0 0 10px #FFD700; }
+  .lb-rank.silver { color: #C0C0C0; }
+  .lb-rank.bronze { color: #CD7F32; }
+  .lb-skin { font-size: 22px; }
+  .lb-name { flex: 1; font-size: 8px; color: #e2e8f0; }
+  .lb-score { font-size: 10px; color: #4ade80; text-shadow: 0 0 8px #4ade80; }
+
+  /* GAME OVER */
+  #gameover-screen {
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(4px);
+  }
+
+  .go-title {
+    font-size: 20px;
+    color: #ef4444;
+    text-shadow: 0 0 30px #ef4444, 2px 2px 0 #000;
+    margin-bottom: 20px;
+    animation: shake 0.3s ease 0.1s;
+  }
+
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+  }
+
+  .go-score-box {
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 16px;
+    padding: 20px 40px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .go-score-label { font-size: 7px; color: #64748b; margin-bottom: 6px; }
+  .go-score-value { font-size: 32px; color: #4ade80; text-shadow: 0 0 20px #4ade80; }
+  .go-best { font-size: 7px; color: #FFD700; margin-top: 8px; }
+
+  .earned-stars { font-size: 9px; color: #FFD700; margin-top: 4px; }
+
+  /* HIDDEN */
+  .hidden { display: none !important; }
+
+  /* Scrollbar for shop */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div id="game-wrapper">
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+  <div id="ui">
+    <div id="score-display" class="hidden">0</div>
+    <div id="stars-display" class="hidden">⭐ <span id="star-count">0</span></div>
+  </div>
+
+  <!-- START SCREEN -->
+  <div class="screen" id="start-screen">
+    <div class="game-title">FLAPPY<br>CUCUMBER</div>
+    <div class="cucumber-emoji">🥒</div>
+    <div style="display:flex; gap:8px; margin-top:10px;">
+      <button class="btn" onclick="startGame()">▶ ИГРАТЬ</button>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:4px;">
+      <button class="btn btn-secondary" onclick="showShop()">🛒 СКИНЫ</button>
+      <button class="btn" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);box-shadow:0 4px 0 #0369a1;" onclick="showLeaderboard()">🏆 РЕЙТИНГ</button>
+    </div>
+    <div class="tap-hint" style="margin-top:16px;">ТАП / ПРОБЕЛ = ПРЫЖОК</div>
+    <div style="font-size:7px;color:#475569;margin-top:12px;">v1.0 — Telegram Stars Edition</div>
+  </div>
+
+  <!-- SHOP SCREEN -->
+  <div class="screen hidden" id="shop-screen">
+    <div class="shop-title">🛒 МАГАЗИН СКИНОВ</div>
+    <div style="font-size:8px;color:#94a3b8;margin-bottom:16px;">⭐ <span id="shop-stars">0</span> Telegram Stars</div>
+    <div class="skins-grid" id="skins-grid"></div>
+    <button class="btn" style="margin-top:16px;" onclick="closeShop()">← НАЗАД</button>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div class="screen hidden" id="leaderboard-screen">
+    <div class="lb-title">🏆 ТОП ИГРОКОВ</div>
+    <div class="lb-list" id="lb-list"></div>
+    <button class="btn" style="margin-top:16px;background:linear-gradient(135deg,#38bdf8,#0ea5e9);box-shadow:0 4px 0 #0369a1;" onclick="closeLeaderboard()">← НАЗАД</button>
+  </div>
+
+  <!-- GAME OVER -->
+  <div class="screen hidden" id="gameover-screen">
+    <div class="go-title">💀 ОГУРЕЦ УМЕР</div>
+    <div class="go-score-box">
+      <div class="go-score-label">СЧЁТ</div>
+      <div class="go-score-value" id="go-score">0</div>
+      <div class="go-best" id="go-best">РЕКОРД: 0</div>
+      <div class="earned-stars" id="earned-stars"></div>
+    </div>
+    <button class="btn" onclick="restartGame()">🔄 ЕЩЁ РАЗ</button>
+    <button class="btn btn-secondary" style="margin-top:4px;" onclick="goToMenu()">🏠 МЕНЮ</button>
+  </div>
+</div>
+
+<script>
+// ==================== AUDIO ENGINE ====================
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+let musicGain = null;
+let musicNodes = [];
+let musicPlaying = false;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new AudioCtx();
+  musicGain = audioCtx.createGain();
+  musicGain.gain.value = 0.18;
+  musicGain.connect(audioCtx.destination);
+}
+
+function playTone(freq, type, duration, volume = 0.3, startTime = 0) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(volume, audioCtx.currentTime + startTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + startTime + duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(audioCtx.currentTime + startTime);
+  osc.stop(audioCtx.currentTime + startTime + duration);
+}
+
+function playJump() {
+  if (!audioCtx) return;
+  playTone(300, 'sine', 0.08, 0.25);
+  playTone(500, 'sine', 0.12, 0.2, 0.04);
+}
+
+function playScore() {
+  if (!audioCtx) return;
+  playTone(600, 'square', 0.08, 0.15);
+  playTone(800, 'square', 0.08, 0.15, 0.08);
+  playTone(1000, 'square', 0.12, 0.15, 0.16);
+}
+
+function playDeath() {
+  if (!audioCtx) return;
+  playTone(400, 'sawtooth', 0.1, 0.4);
+  playTone(300, 'sawtooth', 0.15, 0.35, 0.08);
+  playTone(200, 'sawtooth', 0.2, 0.3, 0.18);
+  playTone(150, 'sawtooth', 0.3, 0.25, 0.3);
+  // noise burst
+  const bufSize = audioCtx.sampleRate * 0.3;
+  const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+  const src = audioCtx.createBufferSource();
+  const g = audioCtx.createGain();
+  g.gain.value = 0.3;
+  src.buffer = buf;
+  src.connect(g); g.connect(audioCtx.destination);
+  src.start();
+}
+
+// 8-bit style background music
+const MELODY = [
+  [523,0.2],[523,0.2],[659,0.2],[523,0.2],[784,0.4],[740,0.4],
+  [523,0.2],[523,0.2],[659,0.2],[523,0.2],[698,0.4],[659,0.4],
+  [523,0.2],[523,0.2],[1047,0.2],[880,0.2],[784,0.2],[659,0.2],[523,0.2],
+  [440,0.2],[523,0.4]
+];
+
+function startMusic() {
+  if (!audioCtx || musicPlaying) return;
+  musicPlaying = true;
+  let idx = 0;
+  let time = audioCtx.currentTime;
+
+  function scheduleNote() {
+    if (!musicPlaying) return;
+    const [freq, dur] = MELODY[idx % MELODY.length];
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0.12, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + dur - 0.01);
+    osc.connect(g); g.connect(musicGain);
+    osc.start(time); osc.stop(time + dur);
+    time += dur;
+    idx++;
+    if (time - audioCtx.currentTime < 1.5) scheduleNote();
+    else setTimeout(scheduleNote, 500);
+  }
+
+  scheduleNote();
+
+  // bass line
+  function bass() {
+    if (!musicPlaying) return;
+    const notes = [130, 147, 165, 147];
+    let t = audioCtx.currentTime;
+    notes.forEach((f, i) => {
+      const o = audioCtx.createOscillator();
+      const g2 = audioCtx.createGain();
+      o.type = 'triangle';
+      o.frequency.value = f;
+      g2.gain.setValueAtTime(0.08, t + i * 0.4);
+      g2.gain.exponentialRampToValueAtTime(0.001, t + i * 0.4 + 0.35);
+      o.connect(g2); g2.connect(musicGain);
+      o.start(t + i * 0.4); o.stop(t + i * 0.4 + 0.38);
+    });
+    setTimeout(bass, 1600);
+  }
+  bass();
+}
+
+function stopMusic() {
+  musicPlaying = false;
+}
+
+// ==================== GAME STATE ====================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = 400, H = 600;
+
+let gameState = 'menu'; // menu, playing, dead
+let score = 0;
+let bestScore = parseInt(localStorage.getItem('fc_best') || '0');
+let totalStars = parseInt(localStorage.getItem('fc_stars') || '0');
+let ownedSkins = JSON.parse(localStorage.getItem('fc_owned') || '["default"]');
+let selectedSkin = localStorage.getItem('fc_skin') || 'default';
+let leaderboard = JSON.parse(localStorage.getItem('fc_lb') || '[]');
+
+const SKINS = [
+  { id: 'default', name: 'ОГУРЕЦ', emoji: '🥒', price: 0, color: '#4ade80' },
+  { id: 'fire',    name: 'ОГОНЬ', emoji: '🌶️', price: 50,  color: '#ef4444' },
+  { id: 'cool',    name: 'КРУТОЙ', emoji: '😎', price: 100, color: '#60a5fa' },
+  { id: 'alien',   name: 'ПРИШЕЛЕЦ', emoji: '👽', price: 150, color: '#a78bfa' },
+  { id: 'king',    name: 'ЦАРЬ', emoji: '👑', price: 200, color: '#FFD700' },
+  { id: 'ghost',   name: 'ПРИЗРАК', emoji: '👻', price: 300, color: '#e2e8f0' },
+  { id: 'ninja',   name: '🥷 НИНДЗЯ', emoji: '🥷', price: 500, color: '#1e293b' },
+  { id: 'doge',    name: 'ТАКОЙ ДОЖЬ', emoji: '🐕', price: 1000, color: '#f59e0b' },
+];
+
+// Cucumber / character
+let bird = { x: 80, y: H/2, vy: 0, radius: 22 };
+const GRAVITY = 0.5;
+const JUMP = -9;
+
+// Pipes
+let pipes = [];
+const PIPE_W = 60;
+const GAP = 160;
+let pipeTimer = 0;
+const PIPE_INTERVAL = 90;
+let speed = 2.5;
+
+// Particles
+let particles = [];
+// Stars bg
+let bgStars = Array.from({length:60}, () => ({x:Math.random()*W, y:Math.random()*H, r:Math.random()*2+0.5, sp:Math.random()*0.3+0.1}));
+
+// Ground
+const GROUND_H = 60;
+
+// ==================== SKINS RENDERING ====================
+function getSkinData() {
+  return SKINS.find(s => s.id === selectedSkin) || SKINS[0];
+}
+
+function drawBird(x, y, angle = 0) {
+  const skin = getSkinData();
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  // Shadow
+  ctx.shadowColor = skin.color;
+  ctx.shadowBlur = 15;
+  // Glow circle
+  const grad = ctx.createRadialGradient(0, 0, 5, 0, 0, 28);
+  grad.addColorStop(0, skin.color + '55');
+  grad.addColorStop(1, 'transparent');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(0, 0, 28, 0, Math.PI*2);
+  ctx.fill();
+  // Emoji
+  ctx.font = '38px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(skin.emoji, 0, 2);
+  ctx.restore();
+}
+
+// ==================== DRAWING ====================
+function drawBg() {
+  // Sky gradient
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#0f172a');
+  bg.addColorStop(0.6, '#1e3a5f');
+  bg.addColorStop(1, '#0f3460');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  bgStars.forEach(s => {
+    s.x -= s.sp;
+    if (s.x < 0) { s.x = W; s.y = Math.random() * (H - GROUND_H); }
+    ctx.fillStyle = `rgba(255,255,255,${0.4 + Math.random()*0.3})`;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // Ground
+  const gGrad = ctx.createLinearGradient(0, H-GROUND_H, 0, H);
+  gGrad.addColorStop(0, '#1a4731');
+  gGrad.addColorStop(0.3, '#15803d');
+  gGrad.addColorStop(1, '#166534');
+  ctx.fillStyle = gGrad;
+  ctx.fillRect(0, H-GROUND_H, W, GROUND_H);
+
+  // Ground line
+  ctx.fillStyle = '#4ade80';
+  ctx.fillRect(0, H-GROUND_H, W, 3);
+
+  // Grass tufts
+  for (let i = 0; i < W; i += 30) {
+    const offset = (Date.now()/50 * speed) % 30;
+    const gx = (i - offset + W) % W;
+    ctx.fillStyle = '#22c55e';
+    ctx.fillRect(gx, H-GROUND_H-4, 4, 6);
+    ctx.fillRect(gx+6, H-GROUND_H-6, 3, 8);
+    ctx.fillRect(gx+12, H-GROUND_H-3, 4, 5);
+  }
+}
+
+function drawPipe(pipe) {
+  const topH = pipe.top;
+  const botY = pipe.top + GAP;
+  const botH = H - GROUND_H - botY;
+
+  // Pipe body gradient
+  function pipeGrad(y, h) {
+    const g = ctx.createLinearGradient(pipe.x, 0, pipe.x + PIPE_W, 0);
+    g.addColorStop(0, '#15803d');
+    g.addColorStop(0.3, '#4ade80');
+    g.addColorStop(0.7, '#22c55e');
+    g.addColorStop(1, '#14532d');
+    return g;
+  }
+
+  // Top pipe
+  ctx.fillStyle = pipeGrad(0, topH);
+  ctx.beginPath();
+  ctx.roundRect(pipe.x + 5, 0, PIPE_W - 10, topH - 12, [0, 0, 4, 4]);
+  ctx.fill();
+
+  // Top pipe cap
+  ctx.fillStyle = '#4ade80';
+  ctx.shadowColor = '#4ade80';
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.roundRect(pipe.x, topH - 14, PIPE_W, 14, [6, 6, 0, 0]);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Bottom pipe cap
+  ctx.fillStyle = '#4ade80';
+  ctx.shadowColor = '#4ade80';
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.roundRect(pipe.x, botY, PIPE_W, 14, [0, 0, 6, 6]);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Bottom pipe
+  ctx.fillStyle = pipeGrad(botY+14, botH);
+  ctx.beginPath();
+  ctx.roundRect(pipe.x + 5, botY + 12, PIPE_W - 10, botH, [4, 4, 0, 0]);
+  ctx.fill();
+}
+
+function drawParticles() {
+  particles = particles.filter(p => p.life > 0);
+  particles.forEach(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.1;
+    p.life--;
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.fillStyle = p.color;
+    ctx.font = p.size + 'px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.char, p.x, p.y);
+  });
+  ctx.globalAlpha = 1;
+}
+
+function spawnDeathParticles() {
+  const chars = ['💦','🌿','✨','💚','🍃'];
+  for (let i = 0; i < 15; i++) {
+    particles.push({
+      x: bird.x, y: bird.y,
+      vx: (Math.random()-0.5)*8,
+      vy: (Math.random()-0.5)*8 - 2,
+      life: 40 + Math.random()*20,
+      maxLife: 60,
+      color: '#4ade80',
+      char: chars[Math.floor(Math.random()*chars.length)],
+      size: 14 + Math.random()*12
+    });
+  }
+}
+
+function spawnScoreParticle() {
+  particles.push({
+    x: W/2, y: 80,
+    vx: 0, vy: -1.5,
+    life: 40, maxLife: 40,
+    color: '#4ade80',
+    char: '+1', size: 16
+  });
+}
+
+// ==================== GAME LOGIC ====================
+function resetGame() {
+  bird = { x: 80, y: H/2 - 20, vy: 0, radius: 22 };
+  pipes = [];
+  pipeTimer = 0;
+  score = 0;
+  speed = 2.5;
+  particles = [];
+  document.getElementById('score-display').textContent = '0';
+}
+
+function addPipe() {
+  const minTop = 80;
+  const maxTop = H - GROUND_H - GAP - 80;
+  const top = minTop + Math.random() * (maxTop - minTop);
+  pipes.push({ x: W + 20, top, scored: false });
+}
+
+function checkCollision() {
+  if (bird.y + bird.radius >= H - GROUND_H) return true;
+  if (bird.y - bird.radius <= 0) return true;
+  for (const p of pipes) {
+    if (bird.x + bird.radius - 10 > p.x && bird.x - bird.radius + 10 < p.x + PIPE_W) {
+      if (bird.y - bird.radius + 8 < p.top || bird.y + bird.radius - 8 > p.top + GAP) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function gameLoop() {
+  if (gameState !== 'playing') return;
+
+  ctx.clearRect(0, 0, W, H);
+  drawBg();
+
+  // Update pipes
+  pipeTimer++;
+  if (pipeTimer >= PIPE_INTERVAL) {
+    addPipe();
+    pipeTimer = 0;
+  }
+
+  pipes.forEach(p => {
+    p.x -= speed;
+    if (!p.scored && p.x + PIPE_W < bird.x) {
+      p.scored = true;
+      score++;
+      playScore();
+      spawnScoreParticle();
+      document.getElementById('score-display').textContent = score;
+      speed = 2.5 + score * 0.08;
+    }
+  });
+  pipes = pipes.filter(p => p.x + PIPE_W > -10);
+
+  pipes.forEach(p => drawPipe(p));
+
+  // Bird physics
+  bird.vy += GRAVITY;
+  bird.y += bird.vy;
+  const angle = Math.min(Math.max(bird.vy * 0.05, -0.4), 0.8);
+  drawBird(bird.x, bird.y, angle);
+
+  drawParticles();
+
+  if (checkCollision()) {
+    gameState = 'dead';
+    playDeath();
+    stopMusic();
+    spawnDeathParticles();
+
+    // Draw one last frame with particles
+    setTimeout(() => showGameOver(), 600);
+    return;
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+function showGameOver() {
+  // Update best
+  if (score > bestScore) {
+    bestScore = score;
+    localStorage.setItem('fc_best', bestScore);
+  }
+
+  // Earn stars (1 star per 5 points)
+  const earned = Math.floor(score / 5);
+  totalStars += earned;
+  localStorage.setItem('fc_stars', totalStars);
+  document.getElementById('star-count').textContent = totalStars;
+
+  // Update leaderboard
+  updateLeaderboard();
+
+  document.getElementById('go-score').textContent = score;
+  document.getElementById('go-best').textContent = `РЕКОРД: ${bestScore}`;
+  document.getElementById('earned-stars').textContent = earned > 0 ? `+${earned} ⭐ Telegram Stars получено!` : '';
+  document.getElementById('gameover-screen').classList.remove('hidden');
+  document.getElementById('score-display').classList.add('hidden');
+  document.getElementById('stars-display').classList.add('hidden');
+}
+
+function updateLeaderboard() {
+  const skinEmoji = getSkinData().emoji;
+  const name = 'Игрок ' + (Math.floor(Math.random()*900)+100);
+  leaderboard.push({ name, score, skin: skinEmoji });
+  leaderboard.sort((a,b) => b.score - a.score);
+  leaderboard = leaderboard.slice(0, 10);
+  localStorage.setItem('fc_lb', JSON.stringify(leaderboard));
+}
+
+// ==================== CONTROLS ====================
+function jump() {
+  if (gameState !== 'playing') return;
+  bird.vy = JUMP;
+  playJump();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); jump(); }
+});
+canvas.addEventListener('click', jump);
+canvas.addEventListener('touchstart', e => { e.preventDefault(); jump(); }, {passive: false});
+
+// ==================== SCREENS ====================
+function startGame() {
+  initAudio();
+  startMusic();
+  resetGame();
+  gameState = 'playing';
+  document.getElementById('start-screen').classList.add('hidden');
+  document.getElementById('gameover-screen').classList.add('hidden');
+  document.getElementById('score-display').classList.remove('hidden');
+  document.getElementById('stars-display').classList.remove('hidden');
+  gameLoop();
+}
+
+function restartGame() {
+  initAudio();
+  startMusic();
+  resetGame();
+  gameState = 'playing';
+  document.getElementById('gameover-screen').classList.add('hidden');
+  document.getElementById('score-display').classList.remove('hidden');
+  document.getElementById('stars-display').classList.remove('hidden');
+  gameLoop();
+}
+
+function goToMenu() {
+  gameState = 'menu';
+  document.getElementById('gameover-screen').classList.add('hidden');
+  document.getElementById('score-display').classList.add('hidden');
+  document.getElementById('stars-display').classList.add('hidden');
+  document.getElementById('start-screen').classList.remove('hidden');
+  // Draw static bg
+  drawBg();
+}
+
+function showShop() {
+  document.getElementById('start-screen').classList.add('hidden');
+  renderShop();
+  document.getElementById('shop-screen').classList.remove('hidden');
+}
+
+function closeShop() {
+  document.getElementById('shop-screen').classList.add('hidden');
+  document.getElementById('start-screen').classList.remove('hidden');
+}
+
+function renderShop() {
+  document.getElementById('shop-stars').textContent = totalStars;
+  const grid = document.getElementById('skins-grid');
+  grid.innerHTML = '';
+  SKINS.forEach(skin => {
+    const owned = ownedSkins.includes(skin.id);
+    const selected = selectedSkin === skin.id;
+    const card = document.createElement('div');
+    card.className = 'skin-card' + (owned ? ' owned' : ' locked') + (selected ? ' selected' : '');
+    card.innerHTML = `
+      <span class="skin-emoji">${skin.emoji}</span>
+      <div class="skin-name">${skin.name}</div>
+      <div class="skin-price ${skin.price===0?'free':owned?'owned-label':''}">
+        ${selected ? '✓ ВЫБРАН' : owned ? 'ВЫБРАТЬ' : skin.price===0 ? 'БЕСПЛАТНО' : '⭐ '+skin.price}
+      </div>
+    `;
+    card.onclick = () => selectOrBuySkin(skin.id);
+    grid.appendChild(card);
+  });
+}
+
+function selectOrBuySkin(id) {
+  const skin = SKINS.find(s => s.id === id);
+  if (ownedSkins.includes(id)) {
+    selectedSkin = id;
+    localStorage.setItem('fc_skin', id);
+    renderShop();
+  } else {
+    if (totalStars >= skin.price) {
+      totalStars -= skin.price;
+      localStorage.setItem('fc_stars', totalStars);
+      ownedSkins.push(id);
+      localStorage.setItem('fc_owned', JSON.stringify(ownedSkins));
+      selectedSkin = id;
+      localStorage.setItem('fc_skin', id);
+      playScore();
+      renderShop();
+    } else {
+      // Flash red
+      const cards = document.querySelectorAll('.skin-card');
+      cards.forEach(c => {
+        if (c.querySelector('.skin-emoji').textContent === skin.emoji) {
+          c.style.borderColor = '#ef4444';
+          setTimeout(() => c.style.borderColor = '', 500);
+        }
+      });
+    }
+  }
+}
+
+function showLeaderboard() {
+  document.getElementById('start-screen').classList.add('hidden');
+  renderLeaderboard();
+  document.getElementById('leaderboard-screen').classList.remove('hidden');
+}
+
+function closeLeaderboard() {
+  document.getElementById('leaderboard-screen').classList.add('hidden');
+  document.getElementById('start-screen').classList.remove('hidden');
+}
+
+function renderLeaderboard() {
+  const list = document.getElementById('lb-list');
+
+  // Merge with demo data if empty
+  let lb = leaderboard.length ? leaderboard : [];
+  if (lb.length < 5) {
+    const demo = [
+      {name:'Cucumber_Pro', score:42, skin:'🥒'},
+      {name:'SpeedRunner_99', score:38, skin:'🌶️'},
+      {name:'TelegramStar', score:31, skin:'👑'},
+      {name:'FlappyMaster', score:27, skin:'👽'},
+      {name:'PickleRick', score:19, skin:'🥒'},
+    ];
+    lb = [...lb, ...demo].sort((a,b) => b.score-a.score).slice(0, 10);
+  }
+
+  const rankClasses = ['gold','silver','bronze'];
+  const rankEmoji = ['🥇','🥈','🥉'];
+  list.innerHTML = lb.map((e, i) => `
+    <div class="lb-entry">
+      <div class="lb-rank ${rankClasses[i]||''}">${i<3 ? rankEmoji[i] : '#'+(i+1)}</div>
+      <div class="lb-skin">${e.skin}</div>
+      <div class="lb-name">${e.name}</div>
+      <div class="lb-score">${e.score}</div>
+    </div>
+  `).join('');
+}
+
+// Initial draw
+drawBg();
+document.getElementById('star-count').textContent = totalStars;
+</script>
+</body>
+</html>
